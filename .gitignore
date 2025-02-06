@@ -155,3 +155,11 @@ colossalai/version.py
 # ignore coverage test file
 coverage.lcov
 coverage.xml
+
+# ignore testmon and coverage files
+.coverage
+.testmondata*
+
+# log, test files - ColossalChat
+applications/ColossalChat/logs
+applications/ColossalChat/tests/logs

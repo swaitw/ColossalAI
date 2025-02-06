@@ -1,13 +1,12 @@
-from functools import partial
 from typing import Dict, List, Tuple
 
 import pytest
 import torch
 import torch.fx
-import torch.multiprocessing as mp
 
 try:
     from fastfold.model.nn.evoformer import EvoformerBlock
+
     HAS_REPO = True
 except:
     HAS_REPO = False
@@ -15,25 +14,30 @@ except:
 from test_autochunk_alphafold_utils import run_test
 
 from colossalai.autochunk.autochunk_codegen import AUTOCHUNK_AVAILABLE
+from colossalai.testing import clear_cache_before_run, parameterize, spawn
 
 
 def get_model():
-    model = EvoformerBlock(
-        c_m=256,
-        c_z=128,
-        c_hidden_msa_att=32,
-        c_hidden_opm=32,
-        c_hidden_mul=128,
-        c_hidden_pair_att=32,
-        no_heads_msa=8,
-        no_heads_pair=4,
-        transition_n=4,
-        msa_dropout=0.15,
-        pair_dropout=0.15,
-        inf=1e4,
-        eps=1e-4,
-        is_multimer=False,
-    ).eval().cuda()
+    model = (
+        EvoformerBlock(
+            c_m=256,
+            c_z=128,
+            c_hidden_msa_att=32,
+            c_hidden_opm=32,
+            c_hidden_mul=128,
+            c_hidden_pair_att=32,
+            no_heads_msa=8,
+            no_heads_pair=4,
+            transition_n=4,
+            msa_dropout=0.15,
+            pair_dropout=0.15,
+            inf=1e4,
+            eps=1e-4,
+            is_multimer=False,
+        )
+        .eval()
+        .cuda()
+    )
     return model
 
 
@@ -55,8 +59,20 @@ def get_data(msa_len: int, pair_len: int) -> Tuple[List, List]:
 
 def get_chunk_target() -> Dict:
     return {
-        None: [(120, 126), (225, 244), (270, 289), (306, 311), (70, 106), (23, 46), (146, 152), (187, 193), (181, 184),
-               (140, 145), (162, 163), (203, 204)],
+        None: [
+            (120, 126),
+            (225, 244),
+            (270, 289),
+            (306, 311),
+            (70, 106),
+            (23, 46),
+            (146, 152),
+            (187, 193),
+            (181, 184),
+            (140, 145),
+            (162, 163),
+            (203, 204),
+        ],
         20: [(120, 123), (232, 237), (277, 282), (305, 306)],
         24: [(122, 123)],
     }
@@ -66,18 +82,19 @@ def get_chunk_target() -> Dict:
     not (AUTOCHUNK_AVAILABLE and HAS_REPO),
     reason="torch version is lower than 1.12.0",
 )
-@pytest.mark.parametrize("max_memory", [None, 20, 24])
-@pytest.mark.parametrize("data_args", [(32, 64)])    # (msa_len, pair_len)
+@clear_cache_before_run()
+@parameterize("max_memory", [None, 20, 24])
+@parameterize("data_args", [(32, 64)])
 def test_evoformer_block(data_args, max_memory):
-    run_func = partial(
+    spawn(
         run_test,
+        1,
         data_args=data_args,
         max_memory=max_memory,
         get_model=get_model,
         get_data=get_data,
         get_chunk_target=get_chunk_target,
     )
-    mp.spawn(run_func, nprocs=1)
 
 
 if __name__ == "__main__":

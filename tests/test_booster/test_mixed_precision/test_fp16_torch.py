@@ -1,23 +1,19 @@
-from functools import partial
-
 import torch
-import torch.multiprocessing as mp
 from torch.optim import Adam
 
 import colossalai
 from colossalai.booster.mixed_precision import FP16TorchMixedPrecision
-from colossalai.testing import rerun_if_address_is_in_use
-from colossalai.utils import free_port
+from colossalai.testing import rerun_if_address_is_in_use, spawn
 from tests.kit.model_zoo import model_zoo
 
 
 def run_torch_amp(rank, world_size, port):
     # init dist env
-    colossalai.launch(config=dict(), rank=rank, world_size=world_size, port=port, host='localhost')
-    sub_model_zoo = model_zoo.get_sub_registry('timm')
-    for name, (model_fn, data_gen_fn, output_transform_fn, _) in sub_model_zoo.items():
+    colossalai.launch(rank=rank, world_size=world_size, port=port, host="localhost")
+    sub_model_zoo = model_zoo.get_sub_registry("timm")
+    for name, (model_fn, data_gen_fn, output_transform_fn, _, _) in sub_model_zoo.items():
         # dlrm_interactionarch has not parameters, so skip
-        if name == 'dlrm_interactionarch':
+        if name == "dlrm_interactionarch":
             continue
 
         model = model_fn().cuda()
@@ -25,7 +21,7 @@ def run_torch_amp(rank, world_size, port):
         criterion = lambda x: x.mean()
         data = data_gen_fn()
         data = {
-            k: v.to('cuda') if torch.is_tensor(v) or 'Tensor' in v.__class__.__name__ else v for k, v in data.items()
+            k: v.to("cuda") if torch.is_tensor(v) or "Tensor" in v.__class__.__name__ else v for k, v in data.items()
         }
         mixed_precision = FP16TorchMixedPrecision()
         model, optimizer, criterion = mixed_precision.configure(model, optimizer, criterion)
@@ -41,6 +37,4 @@ def run_torch_amp(rank, world_size, port):
 
 @rerun_if_address_is_in_use()
 def test_torch_ddp_plugin():
-    world_size = 1
-    run_func = partial(run_torch_amp, world_size=world_size, port=free_port())
-    mp.spawn(run_func, nprocs=world_size)
+    spawn(run_torch_amp, 1)

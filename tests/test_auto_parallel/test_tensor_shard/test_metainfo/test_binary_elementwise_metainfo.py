@@ -1,22 +1,16 @@
-from functools import partial
-
 import pytest
 import torch
-import torch.multiprocessing as mp
 import torch.nn as nn
 
 from colossalai.device.device_mesh import DeviceMesh
-from colossalai.fx import ColoGraphModule, ColoTracer
 from colossalai.initialize import launch
 from colossalai.logging import disable_existing_loggers
 from colossalai.testing.pytest_wrapper import run_on_environment_flag
-from colossalai.testing.utils import parameterize, rerun_if_address_is_in_use
-from colossalai.utils import free_port
+from colossalai.testing.utils import rerun_if_address_is_in_use, spawn
 from tests.test_auto_parallel.test_tensor_shard.test_metainfo.utils import mem_test_for_node_strategy
 
 
 class BinaryElementwiseOpModule(nn.Module):
-
     def __init__(self, token=torch.add, shape=64) -> None:
         super().__init__()
         self.token = token
@@ -37,7 +31,7 @@ def _binary_elementwise_mem_test(rank, world_size, port):
         port: port for initializing process group
     """
     disable_existing_loggers()
-    launch(config={}, rank=rank, world_size=world_size, host='localhost', port=port, backend='nccl')
+    launch(rank=rank, world_size=world_size, host="localhost", port=port, backend="nccl")
     model = BinaryElementwiseOpModule(token=torch.add, shape=1024).cuda()
     input = torch.rand(32, 1024).cuda()
     input.requires_grad = True
@@ -49,23 +43,23 @@ def _binary_elementwise_mem_test(rank, world_size, port):
     node_index = 2
     # total number of target node strategies
     strategy_number = 9
-    mem_test_for_node_strategy(rank=rank,
-                               model=model,
-                               device_mesh=device_mesh,
-                               node_index=node_index,
-                               strategy_number=strategy_number,
-                               input_args=[input],
-                               meta_arg_names=['input'])
+    mem_test_for_node_strategy(
+        rank=rank,
+        model=model,
+        device_mesh=device_mesh,
+        node_index=node_index,
+        strategy_number=strategy_number,
+        input_args=[input],
+        meta_arg_names=["input"],
+    )
 
 
-@run_on_environment_flag(name='AUTO_PARALLEL')
+@run_on_environment_flag(name="AUTO_PARALLEL")
 @pytest.mark.dist
 @rerun_if_address_is_in_use()
 def test_binary_elementwise_meta_concrete_info_match():
-    world_size = 4
-    run_func_module = partial(_binary_elementwise_mem_test, world_size=world_size, port=free_port())
-    mp.spawn(run_func_module, nprocs=world_size)
+    spawn(_binary_elementwise_mem_test, 4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_binary_elementwise_meta_concrete_info_match()

@@ -37,7 +37,7 @@ The `text` include the tag `Teyvat`, `Name`,`Element`, `Weapon`, `Region`, `Mode
 
 ## Training
 
-We provide the script `colossalai.sh` to run the training task with colossalai. Meanwhile, we also provided traditional training process of dreambooth, `dreambooth.sh`, for possible comparation. For instance, the script of training process for [stable-diffusion-v1-4] model can be modified into:
+We provide the script `colossalai.sh` to run the training task with colossalai. Meanwhile, we also provided traditional training process of dreambooth, `dreambooth.sh`, for possible comparison. For instance, the script of training process for [stable-diffusion-v1-4] model can be modified into:
 
 ```bash
 export MODEL_NAME="CompVis/stable-diffusion-v1-4"
@@ -61,7 +61,7 @@ torchrun --nproc_per_node 2 train_dreambooth_colossalai.py \
 - `INSTANCE_DIR` refers to personalized path to instance images, you might need to insert information here.
 - `OUTPUT_DIR` refers to local path to save the trained model, you might need to find a path with enough space.
 - `resolution` refers to the corresponding resolution number of your target model. Note: Change the `resolution` to 768 if you are using the [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) 768x768 model.
-- `placement`  refers to the training strategy supported by Colossal AI, defult = 'cuda', which refers to loading all the parameters into cuda memory. On the other hand, 'cpu' refers to 'cpu offload' strategy while 'auto' enables 'Gemini', both featured by Colossal AI.
+- `placement`  refers to the training strategy supported by Colossal AI, default = 'cuda', which refers to loading all the parameters into cuda memory. On the other hand, 'cpu' refers to 'cpu offload' strategy while 'auto' enables 'Gemini', both featured by Colossal AI.
 
 ### Training with prior-preservation loss
 
@@ -92,6 +92,29 @@ torchrun --nproc_per_node 2 train_dreambooth_colossalai.py \
   --placement="cuda"
 ```
 
+## New API
+We have modified our previous implementation of Dreambooth with our new Booster API, which offers a more flexible and efficient way to train your model. The new API is more user-friendly and easy to use. You can find the new API in `train_dreambooth_colossalai.py`.
+We have also offer a shell script `test_ci.sh` for you to go through all our plugins for the booster.
+For more information about the booster API you can refer to https://colossalai.org/docs/basics/booster_api/.
+
+## Performance
+
+|    Strategy    | #GPU | Batch Size | GPU RAM(GB) | speedup |
+|:--------------:|:----:|:----------:|:-----------:|:-------:|
+|  Traditional   |  1   |     16     |     oom     |    \    |
+|  Traditional   |  1   |     8      |    61.81    |    1    |
+|   torch_ddp    |  4   |     16     |     oom     |    \    |
+|   torch_ddp    |  4   |     8      |    41.97    |  0.97   |
+|     gemini     |  4   |     16     |    53.29    |    \    |
+|     gemini     |  4   |     8      |    29.36    |  2.00   |
+| low_level_zero |  4   |     16     |    52.80    |    \    |
+| low_level_zero |  4   |     8      |    28.87    |  2.02   |
+
+The evaluation is performed on 4 Nvidia A100 GPUs with 80GB memory each, with GPU 0 & 1, 2 & 3 connected with NVLink.
+We finetuned the [stable-diffusion-v1-4](https://huggingface.co/stabilityai/stable-diffusion-v1-4) model with 512x512 resolution on the [Teyvat](https://huggingface.co/datasets/Fazzie/Teyvat) dataset and compared
+the memory cost and the throughput for the plugins.
+
+
 ## Inference
 
 Once you have trained a model using above command, the inference can be done simply using the `StableDiffusionPipeline`. Make sure to include the `identifier`(e.g. `--instance_prompt="a photo of sks dog" ` in the above example) in your prompt.
@@ -116,7 +139,7 @@ You may contact us or participate in the following ways:
 1. [Leaving a Star ⭐](https://github.com/hpcaitech/ColossalAI/stargazers) to show your like and support. Thanks!
 2. Posting an [issue](https://github.com/hpcaitech/ColossalAI/issues/new/choose), or submitting a PR on GitHub follow the guideline in [Contributing](https://github.com/hpcaitech/ColossalAI/blob/main/CONTRIBUTING.md).
 3. Join the Colossal-AI community on
-[Slack](https://join.slack.com/t/colossalaiworkspace/shared_invite/zt-z7b26eeb-CBp7jouvu~r0~lcFzX832w),
+[Slack](https://github.com/hpcaitech/public_assets/tree/main/colossalai/contact/slack),
 and [WeChat(微信)](https://raw.githubusercontent.com/hpcaitech/public_assets/main/colossalai/img/WeChat.png "qrcode") to share your ideas.
 4. Send your official proposal to email contact@hpcaitech.com
 

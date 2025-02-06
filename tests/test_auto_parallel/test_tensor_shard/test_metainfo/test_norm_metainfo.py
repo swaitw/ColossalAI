@@ -1,29 +1,17 @@
-from functools import partial
-
 import pytest
 import torch
-import torch.multiprocessing as mp
 import torch.nn as nn
 
-from colossalai.auto_parallel.tensor_shard.sharding_strategy import (
-    MemoryCost,
-    OperationData,
-    OperationDataType,
-    ShardingStrategy,
-    StrategiesVector,
-    TrainCycleItem,
-)
+from colossalai.auto_parallel.tensor_shard.sharding_strategy import OperationData, OperationDataType, TrainCycleItem
 from colossalai.device.device_mesh import DeviceMesh
-from colossalai.fx import ColoGraphModule, ColoTracer
 from colossalai.initialize import launch
 from colossalai.logging import disable_existing_loggers
 from colossalai.testing.pytest_wrapper import run_on_environment_flag
-from colossalai.testing.utils import parameterize, rerun_if_address_is_in_use
-from colossalai.utils import free_port
+from colossalai.testing.utils import parameterize, rerun_if_address_is_in_use, spawn
 from tests.test_auto_parallel.test_tensor_shard.test_metainfo.utils import mem_test_for_node_strategy, print_results
 
-if torch.__version__ >= '1.12.0':
-    from colossalai.auto_parallel.meta_profiler import ShardMetaInfo, meta_register
+if torch.__version__ >= "1.12.0":
+    from colossalai.auto_parallel.meta_profiler import meta_register
 
 
 def _batchnorm_module_mem_test(rank, world_size, port):
@@ -37,7 +25,7 @@ def _batchnorm_module_mem_test(rank, world_size, port):
         port: port for initializing process group
     """
     disable_existing_loggers()
-    launch(config={}, rank=rank, world_size=world_size, host='localhost', port=port, backend='nccl')
+    launch(rank=rank, world_size=world_size, host="localhost", port=port, backend="nccl")
     model = nn.Sequential(nn.BatchNorm2d(128)).cuda()
     input = torch.rand(4, 128, 64, 64).cuda()
     input.requires_grad = True
@@ -49,29 +37,32 @@ def _batchnorm_module_mem_test(rank, world_size, port):
     node_index = 1
     # total number of target node strategies
     strategy_number = 9
-    mem_test_for_node_strategy(rank=rank,
-                               model=model,
-                               device_mesh=device_mesh,
-                               node_index=node_index,
-                               strategy_number=strategy_number,
-                               input_args=[input],
-                               meta_arg_names=['input'])
+    mem_test_for_node_strategy(
+        rank=rank,
+        model=model,
+        device_mesh=device_mesh,
+        node_index=node_index,
+        strategy_number=strategy_number,
+        input_args=[input],
+        meta_arg_names=["input"],
+    )
 
 
-@run_on_environment_flag(name='AUTO_PARALLEL')
+@run_on_environment_flag(name="AUTO_PARALLEL")
 @pytest.mark.dist
 @rerun_if_address_is_in_use()
 def test_batchnorm_meta_concrete_info_match():
-    world_size = 4
-    run_func_module = partial(_batchnorm_module_mem_test, world_size=world_size, port=free_port())
-    mp.spawn(run_func_module, nprocs=world_size)
+    spawn(_batchnorm_module_mem_test, 4)
 
 
-@pytest.mark.skipif(torch.__version__ < '1.12.0', reason='need pytorch 1.12.0 or higher for aten level operations')
-@parameterize('tensor_shape', [
-    [256, 1024],
-    [1024, 256],
-])
+@pytest.mark.skipif(torch.__version__ < "1.12.0", reason="need pytorch 1.12.0 or higher for aten level operations")
+@parameterize(
+    "tensor_shape",
+    [
+        [256, 1024],
+        [1024, 256],
+    ],
+)
 def test_layernorm_meta_info(tensor_shape):
     meta_func = meta_register.get(torch.nn.LayerNorm)
 
@@ -92,7 +83,7 @@ def test_layernorm_meta_info(tensor_shape):
 
     # construct args and kwargs
     args = [input_data, output_data, weight_data, bias_data]
-    kwargs = {'inplace': False}
+    kwargs = {"inplace": False}
 
     # estimated results
     compute_cost, memory_cost, fwd_in, fwd_buffer, fwd_out = meta_func(*args, **kwargs)
@@ -122,10 +113,18 @@ def test_layernorm_meta_info(tensor_shape):
     compute_cost: TrainCycleItem
     memory_cost: TrainCycleItem
 
-    print_results([input_real_tensor], [output_real_tensor], compute_cost, memory_cost, fwd_allocated, fwd_peak,
-                  bwd_allocated, bwd_peak)
+    print_results(
+        [input_real_tensor],
+        [output_real_tensor],
+        compute_cost,
+        memory_cost,
+        fwd_allocated,
+        fwd_peak,
+        bwd_allocated,
+        bwd_peak,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_batchnorm_meta_concrete_info_match()
     test_layernorm_meta_info()

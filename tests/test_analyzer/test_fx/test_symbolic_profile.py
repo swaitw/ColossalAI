@@ -1,9 +1,8 @@
 import pytest
 import torch
-import torchvision.models as tm
 from packaging import version
 
-from colossalai.testing.utils import parameterize
+from colossalai.testing.utils import clear_cache_before_run, parameterize
 from tests.test_analyzer.test_fx.zoo import tm_models, tmm_models
 
 try:
@@ -15,11 +14,12 @@ except:
 
 def _check_gm_validity(gm: torch.fx.GraphModule):
     for node in gm.graph.nodes:
-        assert len(node.meta['info'].global_ctx), f'In {gm.__class__.__name__}, {node} has empty global context.'
+        assert len(node.meta["info"].global_ctx), f"In {gm.__class__.__name__}, {node} has empty global context."
 
 
-@pytest.mark.skipif(version.parse(torch.__version__) < version.parse('1.12.0'), reason='torch version < 12')
-@parameterize('m', tm_models)
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("1.12.0"), reason="torch version < 12")
+@clear_cache_before_run()
+@parameterize("m", tm_models)
 def test_torchvision_profile(m, verbose=False, bias_addition_split=False):
     with MetaTensorMode():
         model = m()
@@ -32,8 +32,9 @@ def test_torchvision_profile(m, verbose=False, bias_addition_split=False):
     _check_gm_validity(gm)
 
 
-@pytest.mark.skipif(version.parse(torch.__version__) < version.parse('1.12.0'), reason='torch version < 12')
-@parameterize('m', tmm_models)
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("1.12.0"), reason="torch version < 12")
+@clear_cache_before_run()
+@parameterize("m", tmm_models)
 def test_timm_profile(m, verbose=False, bias_addition_split=False):
     with MetaTensorMode():
         model = m()

@@ -7,7 +7,8 @@
       "items": [
         "get_started/installation",
         "get_started/run_demo",
-        "get_started/reading_roadmap"
+        "get_started/reading_roadmap",
+        "get_started/bonus"
       ]
     },
     {
@@ -26,13 +27,10 @@
       "collapsed": true,
       "items": [
         "basics/command_line_tool",
-        "basics/define_your_config",
         "basics/launch_colossalai",
-        "basics/initialize_features",
-        "basics/engine_trainer",
-        "basics/configure_parallelization",
-        "basics/model_checkpoint",
-        "basics/colotensor_concept"
+        "basics/booster_api",
+        "basics/booster_plugins",
+        "basics/booster_checkpoint"
       ]
     },
     {
@@ -40,10 +38,10 @@
       "label": "Features",
       "collapsed": true,
       "items": [
-        "features/mixed_precision_training",
-        "features/gradient_accumulation",
-        "features/gradient_clipping",
-        "features/gradient_handler",
+        "features/shardformer",
+        "features/mixed_precision_training_with_booster",
+        "features/gradient_accumulation_with_booster",
+        "features/gradient_clipping_with_booster",
         "features/zero_with_chunk",
         {
           "type": "category",
@@ -57,7 +55,10 @@
           ]
         },
         "features/pipeline_parallel",
-        "features/nvme_offload"
+        "features/nvme_offload",
+        "features/lazy_init",
+        "features/distributed_optimizers",
+        "features/cluster_utils"
       ]
     },
     {
@@ -65,13 +66,9 @@
       "label": "Advanced Tutorials",
       "collapsed": true,
       "items": [
-        "advanced_tutorials/train_vit_using_pipeline_parallelism",
         "advanced_tutorials/train_vit_with_hybrid_parallelism",
         "advanced_tutorials/train_gpt_using_hybrid_parallelism",
-        "advanced_tutorials/define_your_own_parallel_model",
-        "advanced_tutorials/add_your_parallel",
         "advanced_tutorials/meet_gemini",
-        "advanced_tutorials/parallelize_your_training_like_Megatron",
         "advanced_tutorials/integrate_mixture_of_experts_into_your_model",
         "advanced_tutorials/opt_service"
       ]

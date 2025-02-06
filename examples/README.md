@@ -1,4 +1,12 @@
 # Colossal-AI Examples
+<div align="center">
+
+ <h3>
+ <a href="https://cloud.luchentech.com/">GPU Cloud Playground </a> </a> |
+ <a href="https://cloud.luchentech.com/doc/docs/intro"> Playground Document </a>
+ </h3>
+
+</div>
 
 ## Table of Contents
 
@@ -10,7 +18,12 @@
 
 ## Overview
 
-This folder provides several examples accelerated by Colossal-AI. The `tutorial` folder is for everyone to quickly try out the different features in Colossal-AI. Other folders such as `images` and `language` include a wide range of deep learning tasks and applications.
+This folder provides several examples accelerated by Colossal-AI.
+Folders such as `images` and `language` include a wide range of deep learning tasks and applications.
+The `community` folder aim to create a collaborative platform for developers to contribute exotic features built on top of Colossal-AI.
+The `tutorial` folder is for everyone to quickly try out the different features in Colossal-AI.
+
+You can find applications such as Chatbot, AIGC and Biomedicine in the [Applications](https://github.com/hpcaitech/ColossalAI/tree/main/applications) directory.
 
 ## Folder Structure
 
@@ -31,7 +44,7 @@ You may contact us or participate in the following ways:
 1. [Leaving a Star ⭐](https://github.com/hpcaitech/ColossalAI/stargazers) to show your like and support. Thanks!
 2. Posting an [issue](https://github.com/hpcaitech/ColossalAI/issues/new/choose), or submitting a PR on GitHub follow the guideline in [Contributing](https://github.com/hpcaitech/ColossalAI/blob/main/CONTRIBUTING.md).
 3. Join the Colossal-AI community on
-[Slack](https://join.slack.com/t/colossalaiworkspace/shared_invite/zt-z7b26eeb-CBp7jouvu~r0~lcFzX832w),
+[Slack](https://github.com/hpcaitech/public_assets/tree/main/colossalai/contact/slack),
 and [WeChat(微信)](https://raw.githubusercontent.com/hpcaitech/public_assets/main/colossalai/img/WeChat.png "qrcode") to share your ideas.
 4. Send your official proposal to email contact@hpcaitech.com
 
@@ -50,3 +63,10 @@ Therefore, it is essential for the example contributors to know how to integrate
 2. Configure your testing parameters such as number steps, batch size in `test_ci.sh`, e.t.c. Keep these parameters small such that each example only takes several minutes.
 3. Export your dataset path with the prefix `/data` and make sure you have a copy of the dataset in the `/data/scratch/examples-data` directory on the CI machine. Community contributors can contact us via slack to request for downloading the dataset on the CI machine.
 4. Implement the logic such as dependency setup and example execution
+
+## Community Dependency
+We are happy to introduce the following nice community dependency repos that are powered by Colossal-AI:
+- [lightning-ColossalAI](https://github.com/Lightning-AI/lightning)
+- [HCP-Diffusion](https://github.com/7eu7d7/HCP-Diffusion)
+- [KoChatGPT](https://github.com/airobotlab/KoChatGPT)
+- [minichatgpt](https://github.com/juncongmoo/minichatgpt)

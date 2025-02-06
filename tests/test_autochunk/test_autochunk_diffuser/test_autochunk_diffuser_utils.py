@@ -5,10 +5,9 @@ import torch.fx
 
 import colossalai
 from colossalai.autochunk.autochunk_codegen import AUTOCHUNK_AVAILABLE
-from colossalai.core import global_context as gpc
 from colossalai.fx.graph_module import ColoGraphModule
 from colossalai.fx.passes.meta_info_prop import MetaInfoProp
-from colossalai.utils import free_port
+from colossalai.legacy.core import global_context as gpc
 
 if AUTOCHUNK_AVAILABLE:
     from colossalai.autochunk.autochunk_codegen import AutoChunkCodeGen
@@ -84,15 +83,19 @@ def assert_codegen_run(
             max_mem_ori = torch.cuda.max_memory_allocated() / 1024**2
             print("origin mem: %.2fMB, autochunk mem: %.2fMB" % (max_mem_ori - now_mem_ori, max_mem_gm - now_mem_gm))
 
-    assert torch.allclose(out_gm["sample"], out_model["sample"],
-                          atol=1e-3), "fx_out doesn't comply with original output, diff is %.2e" % torch.mean(
-                              torch.abs(out_gm["sample"] - out_model["sample"]))
+    assert torch.allclose(
+        out_gm["sample"], out_model["sample"], atol=1e-3
+    ), "fx_out doesn't comply with original output, diff is %.2e" % torch.mean(
+        torch.abs(out_gm["sample"] - out_model["sample"])
+    )
 
     return chunks
 
 
 def run_test(
     rank: int,
+    world_size: int,
+    port: int,
     model: Any,
     data: tuple,
     max_memory: int,
@@ -106,9 +109,9 @@ def run_test(
     colossalai.launch(
         config={},
         rank=rank,
-        world_size=1,
+        world_size=world_size,
         host="localhost",
-        port=free_port(),
+        port=port,
         backend="nccl",
     )
 
@@ -128,7 +131,7 @@ def run_test(
     if get_chunk_target is not None:
         chunk_found = [i["region"] for i in chunks]
         chunk_target = get_chunk_target()[max_memory]
-        assert (chunk_found == chunk_target), "found regions %s doesn't equal target regions %s" % (
+        assert chunk_found == chunk_target, "found regions %s doesn't equal target regions %s" % (
             str(chunk_found),
             str(chunk_target),
         )

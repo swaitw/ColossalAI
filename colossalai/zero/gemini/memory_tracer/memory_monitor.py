@@ -5,7 +5,7 @@ from time import sleep, time
 
 import torch
 
-from colossalai.utils import colo_device_memory_used, get_current_device
+from colossalai.accelerator import get_accelerator
 
 
 class MemoryMonitor:
@@ -45,7 +45,7 @@ class MemoryMonitor:
 
 class AsyncMemoryMonitor(MemoryMonitor):
     """
-    An Async Memory Monitor runing during computing. Sampling memory usage of the current GPU
+    An Async Memory Monitor running during computing. Sampling memory usage of the current GPU
     at interval of `1/(10**power)` sec.
 
     The idea comes from Runtime Memory Tracer of PatrickStar
@@ -67,7 +67,7 @@ class AsyncMemoryMonitor(MemoryMonitor):
         async_mem_monitor.save('log.pkl')
 
     Args:
-        power (int, optional): the power of time interva. Defaults to 10.
+        power (int, optional): the power of time interval. Defaults to 10.
 
     .. _PatrickStar: Parallel Training of Pre-trained Models via Chunk-based Memory Management:
         https://arxiv.org/abs/2108.05818
@@ -77,7 +77,7 @@ class AsyncMemoryMonitor(MemoryMonitor):
         super().__init__()
         self.keep_measuring = False
 
-        current_device = get_current_device()
+        current_device = get_accelerator().get_current_device()
 
         def _set_cuda_device():
             torch.cuda.set_device(current_device)
@@ -110,11 +110,13 @@ class AsyncMemoryMonitor(MemoryMonitor):
         return max_usage
 
     def _measure_usage(self):
+        from colossalai.legacy.utils import colo_device_memory_used
+
         max_usage = 0
         while self.keep_measuring:
             max_usage = max(
                 max_usage,
-                colo_device_memory_used(get_current_device()),
+                colo_device_memory_used(get_accelerator().get_current_device()),
             )
             sleep(self.interval)
         return max_usage

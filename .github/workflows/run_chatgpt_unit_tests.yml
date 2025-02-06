@@ -4,20 +4,23 @@ on:
   pull_request:
     types: [synchronize, opened, reopened]
     paths:
-      - 'applications/ChatGPT/chatgpt/**'
-      - 'applications/ChatGPT/requirements.txt'
-      - 'applications/ChatGPT/setup.py'
-      - 'applications/ChatGPT/requirements-test.txt'
-      - 'applications/ChatGPT/tests/**'
-      - 'applications/ChatGPT/pytest.ini'
+      - 'applications/ColossalChat/coati/**'
+      - 'applications/ColossalChat/requirements.txt'
+      - 'applications/ColossalChat/setup.py'
+      - 'applications/ColossalChat/tests/**'
+      - 'applications/ColossalChat/pytest.ini'
 
 jobs:
   tests:
     name: Run ChatGPT unit tests
+    if: |
+      github.event.pull_request.draft == false &&
+      github.base_ref == 'main' &&
+      github.event.pull_request.base.repo.full_name == 'hpcaitech/ColossalAI'
     runs-on: [self-hosted, gpu]
     container:
-      image: hpcaitech/pytorch-cuda:1.12.0-11.3.0
-      options: --gpus all --rm -v /data/scratch/chatgpt:/data/scratch/chatgpt
+      image: hpcaitech/pytorch-cuda:2.2.2-12.1.0
+      options: --gpus all --rm -v /data/scratch/examples-data:/data/scratch/examples-data
     timeout-minutes: 30
     defaults:
       run:
@@ -26,18 +29,19 @@ jobs:
       - name: Checkout ColossalAI
         uses: actions/checkout@v2
 
-      - name: Install ColossalAI and ChatGPT
+      - name: Install ChatGPT
         run: |
+          cd applications/ColossalChat
           pip install -v .
-          cd applications/ChatGPT
-          pip install -v .
-          pip install -r requirements-test.txt
+          pip install pytest
 
       - name: Execute Unit Testing
         run: |
-          cd applications/ChatGPT
+          cd applications/ColossalChat
           rm -rf ~/.cache/colossalai
           pytest tests/
+          cd ./tests
+          ./test_templating.sh
         env:
           NCCL_SHM_DISABLE: 1
           MAX_JOBS: 8

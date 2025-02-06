@@ -1,8 +1,5 @@
 import torch
-import torch.distributed as dist
 from packaging import version
-
-aten = torch.ops.aten
 
 __all__ = [
     "_TorchFactoryMethod",
@@ -50,7 +47,8 @@ _DistCommMethod = [
     "scatter",
 ]
 
-if version.parse(torch.__version__) >= version.parse('1.12.0'):
+if version.parse(torch.__version__) >= version.parse("1.12.0"):
+    aten = torch.ops.aten
     # TODO: dive deep here
     # refer to https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/TensorShape.cpp
     _AliasATen = [

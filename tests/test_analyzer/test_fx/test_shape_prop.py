@@ -1,9 +1,8 @@
 import pytest
 import torch
-import torchvision.models as tm
 from packaging import version
 
-from colossalai.testing.utils import parameterize
+from colossalai.testing.utils import clear_cache_before_run, parameterize
 from tests.test_analyzer.test_fx.zoo import tm_models, tmm_models
 
 try:
@@ -16,23 +15,25 @@ try:
     def linear_impl(*args, **kwargs):
         assert True
         return torch.nn.functional.linear(*args, **kwargs)
+
 except:
     pass
 
 
 def _check_gm_validity(gm: torch.fx.GraphModule):
     for node in gm.graph.nodes:
-        assert node.meta['info'].outputs, f'In {gm.__class__.__name__}, {node} has no output shape.'
+        assert node.meta["info"].outputs, f"In {gm.__class__.__name__}, {node} has no output shape."
         if node.op in [
-                'call_module',    # can apply to params
-                'call_function',    # can apply to params
-                'call_method',    # can apply to params
+            "call_module",  # can apply to params
+            "call_function",  # can apply to params
+            "call_method",  # can apply to params
         ]:
-            assert hasattr(node.meta['info'], 'inputs'), f'In {gm.__class__.__name__}, {node} has no input shape.'
+            assert hasattr(node.meta["info"], "inputs"), f"In {gm.__class__.__name__}, {node} has no input shape."
 
 
-@pytest.mark.skipif(version.parse(torch.__version__) < version.parse('1.12.0'), reason='torch version < 12')
-@parameterize('m', tm_models)
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("1.12.0"), reason="torch version < 12")
+@clear_cache_before_run()
+@parameterize("m", tm_models)
 def test_torchvision_shape_prop(m):
     with MetaTensorMode():
         model = m()
@@ -45,8 +46,9 @@ def test_torchvision_shape_prop(m):
     _check_gm_validity(gm)
 
 
-@pytest.mark.skipif(version.parse(torch.__version__) < version.parse('1.12.0'), reason='torch version < 12')
-@parameterize('m', tmm_models)
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("1.12.0"), reason="torch version < 12")
+@clear_cache_before_run()
+@parameterize("m", tmm_models)
 def test_timm_shape_prop(m):
     with MetaTensorMode():
         model = m()

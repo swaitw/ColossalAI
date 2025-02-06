@@ -1,13 +1,10 @@
 import math
-from typing import Optional
+from typing import Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torch.distributed as dist
-from torch import inf
 from torch._utils import _flatten_dense_tensors, _unflatten_dense_tensors
-
-from colossalai.tensor import ColoParameter
-from colossalai.utils import is_model_parallel_parameter
 
 
 def flatten(input_):
@@ -46,8 +43,8 @@ def shuffle_by_round_robin(tensor_list, num_partitions):
     for partition_id in range(partitions_count):
         partition_tensors = partitions[partition_id]
         for item in partition_tensors:
-            tensor_index_mapping[item['index']] = len(new_tensor_list)
-            new_tensor_list.append(item['tensor'])
+            tensor_index_mapping[item["index"]] = len(new_tensor_list)
+            new_tensor_list.append(item["tensor"])
 
     return new_tensor_list, tensor_index_mapping
 
@@ -91,21 +88,31 @@ def get_grad_accumulate_object(tensor):
     return grad_acc_obj
 
 
-def split_half_float_double(tensor_list):
+def split_by_dtype(tensor_list):
+    """
+    Splits a list of PyTorch tensors into sublists based on their data type.
+
+    :param tensor_list: A list of PyTorch tensors.
+    :type tensor_list: list[torch.Tensor]
+    :return: A list of sublists, where each sublist contains tensors of a specific data type.
+    :rtype: list[list[torch.Tensor]]
+    """
     dtypes = ["torch.cuda.HalfTensor", "torch.cuda.FloatTensor", "torch.cuda.DoubleTensor", "torch.cuda.BFloat16Tensor"]
     buckets = []
-    for i, dtype in enumerate(dtypes):
+    for _, dtype in enumerate(dtypes):
         bucket = [t for t in tensor_list if t.type() == dtype]
         if bucket:
             buckets.append(bucket)
     return buckets
 
 
-def reduce_tensor_dp_group(tensor: torch.Tensor,
-                           dtype: Optional[torch.dtype] = None,
-                           dst_local_rank: Optional[int] = None,
-                           dst_global_rank: Optional[int] = None,
-                           group: Optional[dist.ProcessGroup] = None):
+def reduce_tensor_dp_group(
+    tensor: torch.Tensor,
+    dtype: Optional[torch.dtype] = None,
+    dst_local_rank: Optional[int] = None,
+    dst_global_rank: Optional[int] = None,
+    group: Optional[dist.ProcessGroup] = None,
+):
     """
     Reduce the tensor in the data parallel process group
 
@@ -167,7 +174,7 @@ def has_inf_or_nan(tensor):
             raise
         return True
     else:
-        if tensor_sum == float('inf') or tensor_sum == -float('inf') or tensor_sum != tensor_sum:
+        if tensor_sum == float("inf") or tensor_sum == -float("inf") or tensor_sum != tensor_sum:
             return True
         return False
 
@@ -178,74 +185,14 @@ def release_param_grad(tensor_list):
 
 
 def calculate_global_norm_from_list(norm_list):
-    """ Compute total from a list of norms
-    """
+    """Compute total from a list of norms"""
     total_norm = 0.0
     for norm in norm_list:
         total_norm += norm**2.0
     return math.sqrt(total_norm)
 
 
-def compute_norm(gradients, params, dp_group, mp_group, norm_type=2):
-    """Clips gradient norm of an iterable of parameters.
-    This is adapted from torch.nn.utils.clip_grad.clip_grad_norm_ and
-    added functionality to handle model parallel parameters. Note that
-    the gradients are modified in place.
-    Arguments:
-        parameters (Iterable[Tensor] or Tensor): an iterable of Tensors or a
-            single Tensor that will have gradients normalized
-        max_norm (float or int): max norm of the gradients
-        norm_type (float or int): type of the used p-norm. Can be ``'inf'`` for
-            infinity norm.
-    Returns:
-        Total norm of the parameters (viewed as a single vector).
-    """
-
-    if mp_group is None:
-        mp_rank = 0
-    else:
-        mp_rank = dist.get_rank(mp_group)
-
-    norm_type = float(norm_type)
-    if norm_type == inf:
-        total_norm = max(g.data.abs().max() for g in gradients)
-        total_norm_cuda = torch.cuda.FloatTensor([float(total_norm)])
-        dist.all_reduce(total_norm_cuda, op=torch.distributed.ReduceOp.MAX, group=dp_group)
-
-        # Take max across all GPUs.
-        if mp_group is not None:
-            dist.all_reduce(tensor=total_norm_cuda, op=torch.distributed.ReduceOp.MAX)
-        total_norm = total_norm_cuda[0].item()
-    else:
-        total_norm = 0.0
-        # if dist.get_rank() == 0:
-        #    logger.info(f"Total Norm beginning {total_norm}")
-
-        for g, p in zip(gradients, params):
-            # Pipeline parallelism may replicate parameters. Avoid multi-counting.
-            tp_param_flag = False
-            if is_model_parallel_parameter(p) or (isinstance(p, ColoParameter) and not p.is_replicate()):
-                tp_param_flag = True
-            if tp_param_flag or mp_rank == 0:
-                param_norm = g.data.double().norm(2)
-                total_norm += param_norm.item()**2
-
-        # Sum across all model parallel GPUs.
-        total_norm_cuda = torch.cuda.FloatTensor([float(total_norm)])
-        torch.distributed.all_reduce(total_norm_cuda, op=torch.distributed.ReduceOp.SUM, group=dp_group)
-
-        if mp_group is not None:
-            dist.all_reduce(tensor=total_norm_cuda, op=torch.distributed.ReduceOp.SUM, group=mp_group)
-
-        total_norm = total_norm_cuda[0].item()**(1. / norm_type)
-
-    if total_norm == float('inf') or total_norm == -float('inf') or total_norm != total_norm:
-        total_norm = -1
-
-    return total_norm
-
-
-def sync_param(flat_tensor, tensor_list):
+def sync_tensor(flat_tensor, tensor_list):
     """
     Synchronize the flattened tensor and unflattened tensor list. When
     a list of tensor are flattened with `torch._utils._unflatten_dense_tensors`,
@@ -253,7 +200,7 @@ def sync_param(flat_tensor, tensor_list):
     share the same memory space. This function will update the tensor list so that
     they point to the same value.
 
-    :param flat_tensor: A flat tensor obtained by calling `torch._utils._unflatten_dense_tensors` on a tensor lsit
+    :param flat_tensor: A flat tensor obtained by calling `torch._utils._unflatten_dense_tensors` on a tensor list
     :param tensor_list: A list of tensors corresponding to the flattened tensor
     :type flat_tensor: torch.Tensor
     :type tensor_list: List[torch.Tensor]
@@ -263,3 +210,42 @@ def sync_param(flat_tensor, tensor_list):
     # update the tensor data
     for p, q in zip(tensor_list, updated_params):
         p.data = q.data
+
+
+def all_gather_into_flat_tensor_nd(
+    output_tensor: torch.Tensor,
+    input_tensor: torch.Tensor,
+    group: Union[dist.ProcessGroup, Tuple[dist.ProcessGroup, ...]],
+    async_op: bool = False,
+):
+    if isinstance(group, dist.ProcessGroup):
+        group = (group,)
+    sizes = [dist.get_world_size(pg) for pg in group]
+    ranks = [dist.get_rank(pg) for pg in group]
+    for i, pg in list(enumerate(group))[::-1]:
+        if i == 0:
+            out = output_tensor
+        else:
+            prev_sizes = sizes[:i]
+            prev_ranks = ranks[:i]
+            chunks = output_tensor.chunk(np.prod(prev_sizes))
+            out = chunks[np.ravel_multi_index(prev_ranks, prev_sizes)]
+        handle = dist.all_gather_into_tensor(out, input_tensor, group=pg, async_op=async_op)
+        input_tensor = out
+    return handle
+
+
+def get_nd_world_size(group) -> int:
+    if isinstance(group, tuple):
+        return int(np.prod([dist.get_world_size(pg) for pg in group]))
+    else:
+        return dist.get_world_size(group)
+
+
+def get_nd_rank(group) -> int:
+    if isinstance(group, tuple):
+        return np.ravel_multi_index(
+            tuple(dist.get_rank(group=pg) for pg in group), [dist.get_world_size(pg) for pg in group]
+        )
+    else:
+        return dist.get_rank(group)

@@ -40,7 +40,7 @@ We provide two stable solutions.
 One utilizes the Gemini to implement hybrid parallel strategies of Gemini, DDP/ZeRO, and Tensor Parallelism for a huggingface GPT model.
 The other one use [Titans](https://github.com/hpcaitech/Titans), a distributed executed model zoo maintained by ColossalAI,to implement the hybrid parallel strategies of TP + ZeRO + PP.
 
-We recommend using Gemini to qucikly run your model in a distributed manner.
+We recommend using Gemini to quickly run your model in a distributed manner.
 It doesn't require significant changes to the model structures, therefore you can apply it on a new model easily.
 And use Titans as an advanced weapon to pursue a more extreme performance.
 Titans has included the some typical models, such as Vit and GPT.
@@ -64,6 +64,16 @@ The `train_gpt_demo.py` provides three distributed plans (except ones already pr
 Titans provides a customized GPT model, which uses distributed operators as building blocks.
 In [./titans/README.md], we provide a hybrid parallelism of ZeRO, TP and PP.
 You can switch parallel strategies using a config file.
+
+### Hybridparallelism
+
+Hybridparallelism provides a user friendly plugin to set multiple parallelism method for training and inference. In [./hybridparallelism], we provide a n example to finetune gpt2 using Hybridparallelism.
+
+Quick run
+```bash
+cd ./hybridparallelism
+bash run.sh
+```
 
 ## Performance
 

@@ -5,8 +5,6 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 
-from colossalai.utils import is_ddp_ignored
-
 from .manager import ChunkManager
 from .search_utils import search_chunk_configuration
 
@@ -17,15 +15,20 @@ def safe_div(a, b):
     return a / b
 
 
-def init_chunk_manager(model: nn.Module,
-                       init_device: Optional[torch.device] = None,
-                       hidden_dim: Optional[int] = None,
-                       **kwargs) -> ChunkManager:
+def init_chunk_manager(
+    model: nn.Module,
+    init_device: Optional[torch.device] = None,
+    hidden_dim: Optional[int] = None,
+    reuse_fp16_chunk: bool = True,
+    verbose: bool = False,
+    max_prefetch: int = 0,
+    **kwargs,
+) -> ChunkManager:
     if hidden_dim:
-        search_interval_byte = hidden_dim
+        search_interval = hidden_dim
     else:
-        search_interval_byte = 1024    # defaults to 1kb
-    kwargs["search_interval_byte"] = search_interval_byte
+        search_interval = 1024  # defaults to 1024
+    kwargs["search_interval"] = search_interval
 
     dist.barrier()
     begin = time()
@@ -35,17 +38,19 @@ def init_chunk_manager(model: nn.Module,
     dist.barrier()
     end = time()
     span_s = end - begin
-    mb_size = 1024**2
-    total_size /= mb_size
-    wasted_size /= mb_size
+    mega_unit = 1024**2
+    total_size /= mega_unit
+    wasted_size /= mega_unit
 
-    if dist.get_rank() == 0:
-        print("searching chunk configuration is completed in {:.2f} s.\n".format(span_s),
-              "used number: {:.2f} MB, wasted number: {:.2f} MB\n".format(total_size, wasted_size),
-              "total wasted percentage is {:.2f}%".format(100 * safe_div(wasted_size, total_size + wasted_size)),
-              sep='',
-              flush=True)
+    if verbose and dist.get_rank() == 0:
+        print(
+            "searching chunk configuration is completed in {:.2f} s.\n".format(span_s),
+            "used number: {:.2f} * 2^20, wasted number: {:.2f} * 2^20\n".format(total_size, wasted_size),
+            "total wasted percentage is {:.2f}%".format(100 * safe_div(wasted_size, total_size + wasted_size)),
+            sep="",
+            flush=True,
+        )
     dist.barrier()
 
-    chunk_manager = ChunkManager(config_dict, init_device)
+    chunk_manager = ChunkManager(config_dict, init_device, reuse_fp16_chunk=reuse_fp16_chunk, max_prefetch=max_prefetch)
     return chunk_manager

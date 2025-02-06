@@ -4,18 +4,18 @@ from colossalai.auto_parallel.tensor_shard.constants import INFINITY_COST
 
 
 class CostGraph:
-    '''
+    """
     A graph data structure to simplify the edge cost graph. It has two main functions:
     1. To feed the quadratic resharding costs into solver, we need to linearize it. We build edge_cost in
     CostGraph, and it stored every combinations of strategies for a src-dst node pair in an 1D list.
     2. To reduce the searching space, we merge computationally-trivial operators, such as
-    element-wise operators, transpose, and reduction, into their following nodes. The merging infomation will
+    element-wise operators, transpose, and reduction, into their following nodes. The merging information will
     be given by the StrategiesVector depending on the type of target node and following nodes.
 
     Argument:
         leaf_strategies(List[StrategiesVector]): It stores StrategiesVector of every nodes on the graph.
         simplify(bool, optional): The generated cost graph will be simplified if it is true. (default to True)
-    '''
+    """
 
     def __init__(self, leaf_strategies, simplify=True, forward_only=False):
         self.leaf_strategies = leaf_strategies
@@ -39,10 +39,10 @@ class CostGraph:
             target_node_list.remove(element)
 
     def _build_cost_graph(self):
-        '''
+        """
         This method will generate edge_cost for adjacent node pair. Additionally, 'parents' and 'children' attribute will be
         set to node.
-        '''
+        """
         self.edge_costs = {}
         if self.simplify:
             self.merge_pair = []
@@ -84,13 +84,13 @@ class CostGraph:
                 if _check_tensor_in_node(node._meta_data):
                     children_nodes.append(node)
 
-            setattr(dst_node, 'parents', parent_nodes)
-            setattr(dst_node, 'children', children_nodes)
+            setattr(dst_node, "parents", parent_nodes)
+            setattr(dst_node, "children", children_nodes)
 
             if self.simplify and strategies_vector.check_merge():
                 for followed_node in strategies_vector.predecessor_nodes:
                     # we only merge node pairs which src node has a tensor element inside.
-                    # This is necessay because the node without a tensor element inside will not
+                    # This is necessary because the node without a tensor element inside will not
                     # be assigned any strategy.
                     if _check_tensor_in_node(followed_node._meta_data):
                         self.merge_pair.append((followed_node, dst_node))
@@ -99,7 +99,7 @@ class CostGraph:
         return self.edge_costs[(src_node, dst_node)]
 
     def merge_node(self, src_node, dst_node):
-        '''
+        """
         To merge dst_node into src_node, we need to do it in following steps:
 
         1. For each strategy in dst_node, we need to pick an appropriate strategy
@@ -119,7 +119,7 @@ class CostGraph:
         Argument:
             src_node(Node): The node will be merged into dst_node.
             dst_node(Node): The node to integrate src_node.
-        '''
+        """
         # build merge_map
         merge_map = {}
         for src_index, _ in enumerate(src_node.strategies_vector):
@@ -196,7 +196,7 @@ class CostGraph:
         if not self.simplify:
             return
         self.merge_pair.reverse()
-        for (src_node, dst_node) in self.merge_pair:
+        for src_node, dst_node in self.merge_pair:
             self.merge_node(src_node, dst_node)
         self.merge_pair.reverse()
         reindexing_following_dict = {}

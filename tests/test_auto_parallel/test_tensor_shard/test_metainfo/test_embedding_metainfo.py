@@ -1,33 +1,16 @@
-from functools import partial
-
 import pytest
 import torch
-import torch.multiprocessing as mp
-import torch.nn as nn
 
-from colossalai.auto_parallel.tensor_shard.node_handler import LinearModuleHandler
-from colossalai.auto_parallel.tensor_shard.sharding_strategy import (
-    MemoryCost,
-    OperationData,
-    OperationDataType,
-    ShardingStrategy,
-    StrategiesVector,
-    TrainCycleItem,
-)
-from colossalai.device.device_mesh import DeviceMesh
-from colossalai.fx import ColoGraphModule, ColoTracer
-from colossalai.initialize import launch
-from colossalai.logging import disable_existing_loggers
-from colossalai.testing.pytest_wrapper import run_on_environment_flag
-from colossalai.testing.utils import parameterize, rerun_if_address_is_in_use
-from colossalai.utils import free_port
+from colossalai.auto_parallel.tensor_shard.sharding_strategy import OperationData, OperationDataType
+from colossalai.testing.utils import clear_cache_before_run
 from tests.test_auto_parallel.test_tensor_shard.test_metainfo.utils import print_results
 
-if torch.__version__ >= '1.12.0':
-    from colossalai.auto_parallel.meta_profiler import ShardMetaInfo, meta_register
+if torch.__version__ >= "1.12.0":
+    from colossalai.auto_parallel.meta_profiler import meta_register
 
 
-@pytest.mark.skipif(torch.__version__ < '1.12.0', reason="need pytorch 1.12.0 or higher for aten level operations")
+@pytest.mark.skipif(torch.__version__ < "1.12.0", reason="need pytorch 1.12.0 or higher for aten level operations")
+@clear_cache_before_run()
 def test_embedding_meta_info():
     meta_func = meta_register.get(torch.nn.Embedding)
 
@@ -45,7 +28,7 @@ def test_embedding_meta_info():
 
     # construct args and kwargs
     args = [input_data, weight_data, output_data]
-    kwargs = {'inplace': False}
+    kwargs = {"inplace": False}
 
     # estimated results
     compute_cost, memory_cost, fwd_in, fwd_buffer, fwd_out = meta_func(*args, **kwargs)
@@ -69,9 +52,17 @@ def test_embedding_meta_info():
     bwd_allocated = torch.cuda.memory_allocated() - mem_stamp0
     bwd_peak = torch.cuda.max_memory_allocated() - mem_stamp0
 
-    print_results([input_real_tensor], [output_real_tensor], compute_cost, memory_cost, fwd_allocated, fwd_peak,
-                  bwd_allocated, bwd_peak)
+    print_results(
+        [input_real_tensor],
+        [output_real_tensor],
+        compute_cost,
+        memory_cost,
+        fwd_allocated,
+        fwd_peak,
+        bwd_allocated,
+        bwd_peak,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_embedding_meta_info()
